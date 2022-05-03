@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Pong</title>
+</head>
+
+<body>
+    <canvas width="800" height="600" id="game"></canvas>
+
+    <script>
+        // https://www.udemy.com/code-your-first-game/learn/v4/t/lecture/2701754
+        var canvas;
+        var ctx;
+        var ballX = 200;
+        var ballY = 10;
+        var ballSpeedX = 10;
+        var ballSpeedY = 4;
+
+        var player1Score = 0;
+        var player2Score = 0;
+        const WINNING_SCORE = 3;
+        var showingWinScreen = false;
+
+        var paddle1Y = 250;
+        var paddle2Y = 250;
+        const PADDLE_HEIGHT = 100;
+        const PADDLE_WIDTH = 10;
+        const PADDLE_SPEED = 8;
+
+        function handleMouseClick(evt) {
+            if (showingWinScreen) {
+                player1Score = 0;
+                player2Score = 0;
+                showingWinScreen = false;
+            }
+        };
+
+        function computerMovement() {
+            var paddle2YCenter = paddle2Y + (PADDLE_HEIGHT / 2);
+            var paddleTraceThreshold = 30;
+
+            if (paddle2YCenter < ballY - paddleTraceThreshold) {
+                paddle2Y += PADDLE_SPEED;
+            } else if (paddle2YCenter > ballY + paddleTraceThreshold) {
+                paddle2Y -= PADDLE_SPEED;
+            }
+        };
+
+        function moveEverything() {
+            if (showingWinScreen) return;
+
+            computerMovement();
+
+            ballX = ballX + ballSpeedX;
+            ballY = ballY + ballSpeedY;
+
+            // Bare bones collission detection for boundries of the play area
+            if (ballX < 0) {
+                console.log("PADDLE1(Y): ", paddle1Y, " MAX (", paddle1Y + PADDLE_HEIGHT, ") BALL: ", ballY);
+
+                if (ballY > paddle1Y && ballY < paddle1Y + PADDLE_HEIGHT) {
+                    ballSpeedX *= -1;
+
+                    var deltaY = ballY - (paddle1Y + PADDLE_HEIGHT / 2);
+                    ballSpeedY = deltaY * 0.35;
+                    console.log(ballSpeedY);
+                } else {
+                    player2Score += 1;
+                    ballReset();
+                }
+            }
+
+            if (ballX >= canvas.width) {
+                console.log("PADDLE2(Y): ", paddle1Y, " MAX (", paddle1Y + PADDLE_HEIGHT, ") BALL: ", ballY);
+
+                if (ballY > paddle2Y && ballY < paddle2Y + PADDLE_HEIGHT) {
+                    ballSpeedX *= -1;
+
+                    var deltaY = ballY - (paddle2Y + PADDLE_HEIGHT / 2);
+                    ballSpeedY = deltaY * 0.35;
+                    console.log(ballSpeedY);
+                } else {
+                    player1Score += 1;
+                    ballReset();
+                }
+            }
+
+            if (ballY < 0) {
+                ballSpeedY *= -1;
+            }
+
+            if (ballY > canvas.height) {
+                ballSpeedY *= -1;
+            }
+        }
+
+        function colorRect(leftX, topY, width, height, drawColor) {
+            ctx.fillStyle = drawColor;
+            ctx.fillRect(leftX, topY, width, height);
+        }
+
+        function colorCircle(centerX, centerY, radius, drawColor) {
+            ctx.fillStyle = drawColor;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+            ctx.fill();
+        }
+
+        function calculateMousePosition(evt) {
+            var rect = canvas.getBoundingClientRect();
+            var root = document.documentElement; // perf??
+            var mouseX = evt.clientX - rect.left - root.scrollLeft;
+            var mouseY = evt.clientY - rect.top - root.scrollTop;
+            return {
+                x: mouseX,
+                y: mouseY
+            };
+        }
+
+        function drawNet() {
+            for (i = 0; i < canvas.height; i += 30) {
+                colorRect(canvas.width / 2 - 1, i, 2, 15, "white");
+            }
+        };
+
+        function drawEverything() {
+            // Clear the screen
+            colorRect(0, 0, canvas.width, canvas.height, "black");
+
+            if (showingWinScreen) {
+                ctx.fillStyle = "white";
+
+                if (player1Score >= WINNING_SCORE) {
+                    ctx.fillText("Left Player Won", 350, 200);
+                } else if (player2Score >= WINNING_SCORE) {
+                    ctx.fillText("Right Player Won", 350, 200);
+                }
+
+                ctx.fillText("Click to continue", 350, 500);
+
+                return;
+            }
+
+            drawNet();
+
+            // Left paddle
+            colorRect(0, (paddle1Y - PADDLE_HEIGHT / 2), PADDLE_WIDTH, PADDLE_HEIGHT, "white");
+
+            // Right paddle
+            colorRect((canvas.width - PADDLE_WIDTH), (paddle2Y - PADDLE_HEIGHT / 2), PADDLE_WIDTH, PADDLE_HEIGHT, "white"); // perf
+
+            // Ball
+            colorCircle(ballX, ballY, 10, "white");
+
+            // Scores
+            ctx.fillText(player1Score, 100, 100);
+            ctx.fillText(player2Score, canvas.width - 100, 100);
+        }
+
+        function ballReset() {
+            if (player1Score >= WINNING_SCORE || player2Score >= WINNING_SCORE) {
+                showingWinScreen = true;
+            }
+
+            ballSpeedX *= -1;
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+        }
+
+
+        canvas = document.getElementById("game");
+        ctx = canvas.getContext("2d");
+
+        var framesPerSecond = 30;
+
+        setInterval(function () {
+            moveEverything();
+            drawEverything();
+        }, 1000 / framesPerSecond); // perf
+
+        canvas.addEventListener("mousemove", function (evt) {
+            var mousePos = calculateMousePosition(evt);
+            paddle1Y = mousePos.y;
+        });
+
+        canvas.addEventListener("mousedown", handleMouseClick);
+    </script>
+</body>
+
+</html>

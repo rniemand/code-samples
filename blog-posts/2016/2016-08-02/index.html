@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Pong 2.0</title>
+</head>
+
+<body>
+    <canvas width="800" height="600" id="game"></canvas>
+    <textarea id="log" cols="30" rows="10" style="width: 800px; font-size: 10px; height: 150px"></textarea>
+
+    <script>
+        var logColissions = false;
+        var documentW = document.body.clientWidth;
+        var documentH = document.body.clientHeight;
+        var canvas;
+        var ctx;
+        var ballX = 200;
+        var ballY = 300;
+        var ballSpeedX = 6;
+        var ballSpeedY = 0;
+
+        var player1Score = 0;
+        var player2Score = 0;
+        const WINNING_SCORE = 3;
+        var showingWinScreen = false;
+
+        var paddle1Y = 300;
+        var paddle2Y = 300;
+        const PADDLE_HEIGHT = 100;
+        const PADDLE_WIDTH = 10;
+        const PADDLE_SPEED = 8;
+
+        function handleMouseClick(evt) {
+            if (showingWinScreen) {
+                player1Score = 0;
+                player2Score = 0;
+                showingWinScreen = false;
+                document.getElementById("log").value = "";
+            }
+        };
+
+        function computerMovement() {
+            var paddle2YCenter = paddle2Y;
+            var paddleTraceThreshold = 30;
+
+            if (paddle2YCenter < (ballY - paddleTraceThreshold)) {
+                paddle2Y += PADDLE_SPEED;
+            } else if (paddle2YCenter == ballY) {
+                // why move, let's just chill 
+            } else if (paddle2YCenter > ballY + paddleTraceThreshold) {
+                paddle2Y -= PADDLE_SPEED;
+            }
+        };
+
+        function colorRect(leftX, topY, width, height, drawColor) {
+            ctx.fillStyle = drawColor;
+            ctx.fillRect(leftX, topY, width, height);
+        }
+
+        function colorCircle(centerX, centerY, radius, drawColor) {
+            ctx.fillStyle = drawColor;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2, true);
+            ctx.fill();
+        }
+
+        function calculateMousePosition(evt) {
+            var rect = canvas.getBoundingClientRect();
+            var root = document.documentElement; // perf??
+            var mouseX = evt.clientX - rect.left - root.scrollLeft;
+            var mouseY = evt.clientY - rect.top - root.scrollTop;
+            return {
+                x: mouseX,
+                y: mouseY
+            };
+        }
+
+        function drawNet() {
+            for (i = 0; i < canvas.height; i += 30) {
+                colorRect(canvas.width / 2 - 1, i, 2, 15, "white");
+            }
+        };
+
+        function ballReset() {
+            if (player1Score >= WINNING_SCORE || player2Score >= WINNING_SCORE) {
+                showingWinScreen = true;
+            }
+
+            ballSpeedX *= -1;
+            ballX = canvas.width / 2;
+            ballY = canvas.height / 2;
+            ballSpeedY = 0;
+        }
+
+        function updateBallOnLeftSide(paddleModifier) {
+            var paddleTop = paddle1Y - paddleModifier;
+            var paddleBottom = paddle1Y + paddleModifier;
+
+            if (logColissions) {
+                logCollission({
+                    "paddle": "left",
+                    "paddle-top": paddleTop,
+                    "paddle-bottom": paddleBottom,
+                    "ball-x": ballX,
+                    "ball-y": ballY
+                });
+            }
+
+            if (ballY >= paddleTop && ballY <= paddleBottom) {
+                ballSpeedX *= -1;
+                var deltaY = (ballY - paddleTop) - paddleModifier;
+                ballSpeedY = deltaY * 0.35;
+            } else {
+                player2Score += 1;
+                ballReset();
+            }
+        };
+
+        function updateBallOnRightSide(paddleModifier) {
+            var paddleTop = paddle2Y - paddleModifier;
+            var paddleBottom = paddle2Y + paddleModifier;
+
+            if (logColissions) {
+                logCollission({
+                    "paddle": "right",
+                    "paddle-top": paddleTop,
+                    "paddle-bottom": paddleBottom,
+                    "ball-x": ballX,
+                    "ball-y": ballY
+                });
+            }
+
+            if (ballY >= paddleTop && ballY <= paddleBottom) {
+                ballSpeedX *= -1;
+                var deltaY = (ballY - paddleTop) - paddleModifier;
+                ballSpeedY = deltaY * 0.35;
+            } else {
+                player1Score += 1;
+                ballReset();
+            }
+        }
+
+        function logCollission(info) {
+            document.getElementById("log").value += JSON.stringify(info) + "\r\n";
+        };
+
+        function update() {
+            if (showingWinScreen) return;
+
+            computerMovement();
+
+            // Move the ball along the playing field
+            ballX = ballX + ballSpeedX;
+            ballY = ballY + ballSpeedY;
+            var paddleModifier = (PADDLE_HEIGHT / 2);
+
+            // Bare bones collission detection for boundries of the play area
+            if (ballX <= 0) {
+                updateBallOnLeftSide(paddleModifier);
+            }
+
+            if (ballX >= canvas.width) {
+                updateBallOnRightSide(paddleModifier);
+            }
+
+            if (ballY < 0) {
+                ballSpeedY *= -1;
+            }
+
+            if (ballY > canvas.height) {
+                ballSpeedY *= -1;
+            }
+        }
+
+        function drawWinScreen() {
+            ctx.fillStyle = "white";
+            ctx.font = "30px Arial";
+            ctx.textAlign = "center";
+
+            if (player1Score >= WINNING_SCORE) {
+                ctx.fillText("YOU WIN", canvas.width / 2, canvas.height / 2);
+            } else if (player2Score >= WINNING_SCORE) {
+                ctx.fillText("YOU LOOSE", canvas.width / 2, canvas.height / 2);
+            }
+
+            ctx.fillText("Click to continue", canvas.width / 2, (canvas.height / 2) + 50);
+        }
+
+        function draw() {
+            // Clear the screen
+            colorRect(0, 0, canvas.width, canvas.height, "black");
+
+            if (showingWinScreen) {
+                drawWinScreen();
+                return;
+            }
+
+            drawNet();
+
+            // Paddles
+            colorRect(0, (paddle1Y - (PADDLE_HEIGHT / 2)), PADDLE_WIDTH, PADDLE_HEIGHT, "white");
+            colorRect((canvas.width - PADDLE_WIDTH), paddle2Y - (PADDLE_HEIGHT / 2), PADDLE_WIDTH, PADDLE_HEIGHT, "white");
+
+            // Ball
+            colorCircle(ballX, ballY, 10, "white");
+
+            // Scores
+            ctx.font = "30px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText(player1Score, 100, 100);
+            ctx.fillText(player2Score, (canvas.width - 100), 100);
+        }
+
+        function kickOffGame() {
+            var start = null;
+            var remainder = 0;
+            var timeSlice = 1000 / 60;
+
+            canvas = document.getElementById("game");
+            ctx = canvas.getContext("2d");
+
+            // Default text styles
+            canvas.width = documentW;
+            ballX = canvas.width / 2;
+            canvas.height = 600;
+            ballSpeedX = ballSpeedX * (Math.random() * 10 > 5 ? -1 : 1);
+
+            function step(timestamp) {
+                // Handle updating start and calculating the delta
+                if (!start) start = timestamp;
+                var delta = (timestamp - start) + remainder;
+                start = timestamp;
+
+                // work out the number of times we need to call update
+                var updateCallCount = delta / timeSlice | 0;
+                remainder = delta - (timeSlice * updateCallCount);
+                // if (updateCallCount > 1) {
+                //     console.log("Missed " + updateCallCount + " frames, fast-forwarding game state");
+                // }
+
+                // Call update the required number of times
+                for (var i = 0; i < updateCallCount; i++) {
+                    update();
+                }
+
+                // Draw the current frame, and schedule a redraw
+                draw();
+                requestAnimationFrame(step);
+            };
+
+            canvas.addEventListener("mousemove", function (evt) {
+                var mousePos = calculateMousePosition(evt);
+                paddle1Y = mousePos.y;
+            });
+
+            canvas.addEventListener("mousedown", handleMouseClick);
+
+            requestAnimationFrame(step);
+        };
+
+        kickOffGame();
+    </script>
+</body>
+
+</html>
