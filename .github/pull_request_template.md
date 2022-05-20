@@ -44,5 +44,5 @@ _replace this with your change information here_
 - Link to relevant existing code or pull request: 
 
 <!--(Rn.BuildScriptHelper){
-	"version": "1.0.106"
+	"version": "1.0.107"
 }(END)-->

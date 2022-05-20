@@ -11,5 +11,5 @@ insert_final_newline = true
 trim_trailing_whitespace = true
 
 #(Rn.BuildScriptHelper){
-#  "version": "1.0.106"
+#  "version": "1.0.107"
 #}(END)
