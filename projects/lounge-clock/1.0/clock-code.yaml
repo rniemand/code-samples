@@ -1,0 +1,333 @@
+# https://esphome.io/guides/configuration-types.html#substitutions
+substitutions:
+  device_name: "lounge-clock"
+  display_name: "Lounge"
+  
+esphome:
+  name: $device_name
+  # platform: ESP8266
+  # board: d1_mini
+  
+# Temporary fix (https://esphome.io/components/light/fastled.html)
+esp8266:
+  board: d1_mini
+  framework:
+    version: 2.7.4
+
+logger:
+
+mqtt:
+  broker: !secret mqtt_broker
+  port: !secret mqtt_port
+  username: !secret node_loungeclock_mqtt_user
+  password: !secret node_loungeclock_mqtt_pass
+  
+ota:
+  password: "48eb7e6244479d5a6d0e6df0455aebfb"
+
+wifi:
+  ssid: !secret wifi_ssid_24
+  password: !secret wifi_pass_24
+  
+  manual_ip:
+    static_ip: !secret node_loungeclock_ip
+    gateway: !secret wifi_gateway
+    subnet: !secret wifi_subnet
+    dns1: !secret wifi_dns1
+    dns2: !secret wifi_dns2
+
+  ap:
+    ssid: "${display_name} Clock Hotspot"
+    password: !secret ap_password
+
+captive_portal:
+
+time:
+  - platform: sntp
+    id: sntp_time
+    servers:
+      - 0.pool.ntp.org
+      - 1.pool.ntp.org
+      - 2.pool.ntp.org  
+
+globals:
+  - id: hours_red_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: hours_green_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: hours_blue_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: minutes_red_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: minutes_green_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: minutes_blue_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: dots_red_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: dots_green_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+
+  - id: dots_blue_value
+    type: int
+    restore_value: yes
+    initial_value: '0'
+    
+  - id: dots_blink_value
+    type: bool
+    restore_value: yes
+    initial_value: 'true'
+
+# https://esphome.io/components/switch/template.html
+switch:
+  - platform: template
+    name: "Dots Blink"
+    id: lounge_clock_dots_blink
+    restore_state: true
+    optimistic: true
+    
+  - platform: template
+    name: "24 Hour Format"
+    id: lounge_clock_format_24
+    restore_state: true
+    optimistic: true
+
+output: 
+  #======== Hours ============
+  - platform: template
+    id: hours_red_output
+    type: float
+    write_action:
+      lambda: |-
+        id(hours_red_value) = 255.0 * state;
+
+  - platform: template
+    id: hours_green_output
+    type: float
+    write_action:
+      - lambda: |-
+          id(hours_green_value) = 255.0 * state;
+
+  - platform: template
+    id: hours_blue_output
+    type: float
+    write_action:
+      lambda: |-
+        id(hours_blue_value) = 255.0 * state;
+
+  #========= Minutes ===========
+  - platform: template
+    id: minutes_red_output
+    type: float
+    write_action:
+      lambda: |-
+        id(minutes_red_value) = 255.0 * state;
+
+  - platform: template
+    id: minutes_green_output
+    type: float
+    write_action:
+      lambda: |-
+        id(minutes_green_value) = 255.0 * state;
+
+  - platform: template
+    id: minutes_blue_output
+    type: float
+    write_action:
+      lambda: |-
+        id(minutes_blue_value) = 255.0 * state;
+
+  #========= dots ===========
+  - platform: template
+    id: dots_red_output
+    type: float
+    write_action:
+      lambda: |-
+        id(dots_red_value) = 255.0 * state;
+
+  - platform: template
+    id: dots_green_output
+    type: float
+    write_action:
+      lambda: |-
+        id(dots_green_value) = 255.0 * state;
+
+  - platform: template
+    id: dots_blue_output
+    type: float
+    write_action:
+      lambda: |-
+        id(dots_blue_value) = 255.0 * state;
+
+light:
+  - platform: rgb
+    name: "${display_name} Hours Lights"
+    id: 'hours_lights'
+    red: hours_red_output
+    green: hours_green_output
+    blue: hours_blue_output
+
+  - platform: rgb
+    name: "${display_name} Minutes Lights"
+    id: 'minutes_lights'
+    red: minutes_red_output
+    green: minutes_green_output
+    blue: minutes_blue_output
+
+  - platform: rgb
+    name: "${display_name} Dots Lights"
+    id: 'dots_lights'
+    red: dots_red_output
+    green: dots_green_output
+    blue: dots_blue_output
+    
+  - platform: fastled_clockless
+    chipset: WS2812B
+    pin: D3
+    id: 'time_leds'
+    num_leds: 30
+    rgb_order: GRB
+    name: "${display_name} Clock"
+    effects:
+      - random:
+      - random:
+          name: "Fast Random"
+          transition_length: 3s
+          update_interval: 4s
+      - pulse:
+          update_interval: 3s
+          transition_length: 1s
+      - addressable_color_wipe:
+          add_led_interval: 200ms
+          reverse: false
+      - addressable_twinkle:
+          twinkle_probability: 12%
+      - addressable_random_twinkle:
+          twinkle_probability: 12%
+          progress_interval: 32ms
+      - addressable_fireworks:
+          update_interval: 50ms
+          spark_probability: 22%
+          use_random_color: true
+          fade_out_rate: 250
+      - addressable_scan:
+      - addressable_rainbow:
+          name: Rainbow
+          speed: 10
+          width: 50
+      - addressable_lambda:
+          name: "Time effect"
+          update_interval: 200ms
+          lambda: |-
+            const int ledsInDigitCount = 7;
+            const int digitsCount = 4;
+
+            int digitsLeds[10][ledsInDigitCount] = {
+              {1,1,1,1,1,1,0}, // 0
+              {0,1,1,0,0,0,0}, // 1
+              {1,1,0,1,1,0,1}, // 2
+              {1,1,1,1,0,0,1}, // 3
+              {0,1,1,0,0,1,1}, // 4
+              {1,0,1,1,0,1,1}, // 5
+              {1,0,1,1,1,1,1}, // 6
+              {1,1,1,0,0,0,0}, // 7
+              {1,1,1,1,1,1,1}, // 8
+              {1,1,1,1,0,1,1}  // 9
+            };
+            
+            int ledOffsets[digitsCount] = {0, 7, 14, 21};
+            
+            auto time = id(sntp_time).now();
+            int colors[4][3] = {
+              {id(hours_red_value), id(hours_green_value), id(hours_blue_value)},
+              {id(hours_red_value), id(hours_green_value), id(hours_blue_value)},
+              {id(minutes_red_value), id(minutes_green_value), id(minutes_blue_value)},
+              {id(minutes_red_value), id(minutes_green_value), id(minutes_blue_value)}
+            };
+            
+            int values[digitsCount] = {};
+            
+            if(!id(lounge_clock_format_24).state) {
+              if(time.hour > 12) {
+                time.hour -= 12;
+              }
+            }
+            
+            values[0] = time.hour / 10;
+            values[1] = time.hour % 10;
+            values[2] = time.minute / 10;
+            values[3] = time.minute % 10;
+            
+            it.all() = Color(0,0,0);
+            
+            for (int valueI = 0; valueI < digitsCount; valueI++) {
+              int ledsOffset = ledOffsets[valueI];
+              int timeValue = values[valueI];
+              int *color = colors[valueI];
+              int *leds = digitsLeds[timeValue];
+              
+              for (int ledI = 0; ledI < ledsInDigitCount; ledI++) {
+                if(leds[ledI] > 0) {
+                  int ledIndex = ledI + ledsOffset;
+                  it[ledIndex] = Color(color[0], color[1], color[2]);
+                }
+              }
+            }
+            
+            bool blink_dots = id(lounge_clock_dots_blink).state;
+            if(!blink_dots) {
+              it[28] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
+              it[29] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
+            } else {
+              if ((time.second % 2) > 0) {
+                it[28] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
+                it[29] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
+              }
+            }
+
+sensor:
+  - platform: dht
+    pin: D1
+    temperature:
+      name: "${display_name} Temperature"
+      id: temperature_lounge_clock
+    humidity:
+      name: "${display_name} Humidity"
+      id: humidity_lounge_clock
+    update_interval: !secret collection_interval_dht
+    
+  - platform: adc
+    pin: A0
+    name: "${display_name} Brightness"
+    id: lounge_clock_brightness
+    update_interval: !secret collection_interval_ldr
+    filters:
+      - multiply: 3.3
+      
+  - platform: wifi_signal
+    name: "${display_name} WiFi"
+    update_interval: !secret collection_interval_wifi_signal
+    
