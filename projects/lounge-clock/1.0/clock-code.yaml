@@ -104,14 +104,20 @@ globals:
 # https://esphome.io/components/switch/template.html
 switch:
   - platform: template
-    name: "Dots Blink"
+    name: "${display_name} Dots Blink"
     id: lounge_clock_dots_blink
     restore_state: true
     optimistic: true
     
   - platform: template
-    name: "24 Hour Format"
+    name: "${display_name} 24 Hour Format"
     id: lounge_clock_format_24
+    restore_state: true
+    optimistic: true
+    
+  - platform: template
+    name: "${display_name} Leading Zero"
+    id: lounge_clock_leading_zero
     restore_state: true
     optimistic: true
 
@@ -244,8 +250,13 @@ light:
           lambda: |-
             const int ledsInDigitCount = 7;
             const int digitsCount = 4;
+            
+            bool blink_dots   = id(lounge_clock_dots_blink).state;
+            bool format_24H   = id(lounge_clock_format_24).state;
+            bool leading_zero = id(lounge_clock_leading_zero).state;
 
-            int digitsLeds[10][ledsInDigitCount] = {
+            int digitsLeds[11][ledsInDigitCount] = {
+              // A B C D E F G
               {1,1,1,1,1,1,0}, // 0
               {0,1,1,0,0,0,0}, // 1
               {1,1,0,1,1,0,1}, // 2
@@ -255,7 +266,8 @@ light:
               {1,0,1,1,1,1,1}, // 6
               {1,1,1,0,0,0,0}, // 7
               {1,1,1,1,1,1,1}, // 8
-              {1,1,1,1,0,1,1}  // 9
+              {1,1,1,1,0,1,1}, // 9
+              {0,0,0,0,0,0,0}, // 10 -> ALL_OFF!
             };
             
             int ledOffsets[digitsCount] = {0, 7, 14, 21};
@@ -270,10 +282,8 @@ light:
             
             int values[digitsCount] = {};
             
-            if(!id(lounge_clock_format_24).state) {
-              if(time.hour > 12) {
-                time.hour -= 12;
-              }
+            if(!format_24H) {
+              if(time.hour > 12) { time.hour -= 12; }
             }
             
             values[0] = time.hour / 10;
@@ -286,6 +296,12 @@ light:
             for (int valueI = 0; valueI < digitsCount; valueI++) {
               int ledsOffset = ledOffsets[valueI];
               int timeValue = values[valueI];
+              
+              // If enabled, drop the leading "0" for the HOUR
+              if(valueI == 0 && !leading_zero && timeValue == 0) {
+                timeValue = 10;
+              }
+              
               int *color = colors[valueI];
               int *leds = digitsLeds[timeValue];
               
@@ -297,7 +313,6 @@ light:
               }
             }
             
-            bool blink_dots = id(lounge_clock_dots_blink).state;
             if(!blink_dots) {
               it[28] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
               it[29] = Color(id(dots_red_value), id(dots_green_value), id(dots_blue_value));
